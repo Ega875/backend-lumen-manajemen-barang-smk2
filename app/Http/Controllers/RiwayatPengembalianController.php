@@ -27,7 +27,7 @@ class RiwayatPengembalianController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Data seluruh riwayat pengembalian berhasil diambil.',
+            'message' => 'Data seluruh riwayat pengembalian.',
             'data'    => $riwayat
         ], 200);
     }

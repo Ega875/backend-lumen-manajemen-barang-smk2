@@ -4,17 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Peminjaman;
 use App\Models\Barang;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PengembalianController extends Controller
 {
     // 1. PROSES PENGEMBALIAN BARU (Akses khusus Sarpras sebagai verifikator)
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         $this->validate($request, [
-            'peminjaman_id'  => 'required|exists:peminjaman,id',
-            'kondisi_kembali' => 'required|in:baik,rusak,hilang' // Catatan kondisi saat dipulangkan
+            'peminjaman_id'  => 'required|exists:peminjamans,id', // PERBAIKAN: Sesuaikan dengan nama tabel database kamu (biasanya plural 'peminjamans')
+            'kondisi_kembali' => 'required|in:baik,rusak,hilang'
         ]);
 
         // Cari data peminjaman yang statusnya masih 'dipinjam'
@@ -40,24 +41,27 @@ class PengembalianController extends Controller
             ]);
 
             // B. Kembalikan stok barang ke tabel inventaris (Hanya jika kondisinya 'baik' atau 'rusak')
-            // Catatan: Jika 'hilang', stok tidak usah ditambah kembali karena barangnya sudah tidak ada
             if ($request->kondisi_kembali !== 'hilang') {
+                /** @var Barang $barang */
                 $barang = Barang::find($peminjaman->barang_id);
-                $barang->jumlah += $peminjaman->jumlah_pinjam;
-                
-                // Jika pas kembali ternyata rusak, kita bisa sekalian update kondisi barangnya di inventaris
-                if ($request->kondisi_kembali === 'rusak') {
-                    $barang->kondisi = 'Rusak Sebagian';
+
+                if ($barang) {
+                    $barang->jumlah += $peminjaman->jumlah_pinjam;
+
+                    // Jika pas kembali ternyata rusak, update kondisi barangnya di inventaris
+                    if ($request->kondisi_kembali === 'rusak') {
+                        $barang->kondisi = 'Rusak Sebagian';
+                    }
+
+                    $barang->save();
                 }
-                
-                $barang->save();
             }
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Proses pengembalian alat berhasil! Stok inventaris telah diperbarui.',
+                'message' => 'Proses pengembalian alat berhasil!',
                 'data'    => $peminjaman
             ], 200);
 
@@ -71,9 +75,19 @@ class PengembalianController extends Controller
     }
 
     // 2. RIWAYAT PENGEMBALIAN (Menampilkan daftar alat yang SUDAH kembali)
-    public function riwayatKembali(Request $request)
+    public function riwayatKembali(Request $request): JsonResponse
     {
-        $user = $request->auth;
+        // PERBAIKAN LUMEN: Menggunakan $request->user() agar konsisten dengan PeminjamanController
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Antisipasi jika user tidak terdeteksi
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User tidak terautentikasi.'
+            ], 401);
+        }
 
         // Jika siswa atau jurusan, tampilkan riwayat pengembalian milik mereka sendiri
         if (in_array($user->role, ['siswa', 'jurusan'])) {
@@ -90,7 +104,7 @@ class PengembalianController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Daftar riwayat pengembalian berhasil diambil',
+            'message' => 'Daftar riwayat pengembalian berhasil diambil.',
             'data'    => $riwayat
         ], 200);
     }

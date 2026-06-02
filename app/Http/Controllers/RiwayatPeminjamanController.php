@@ -24,7 +24,7 @@ class RiwayatPeminjamanController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Data seluruh riwayat peminjaman berhasil diambil.',
+            'message' => 'Data seluruh riwayat peminjaman.',
             'data'    => $riwayat
         ], 200);
     }

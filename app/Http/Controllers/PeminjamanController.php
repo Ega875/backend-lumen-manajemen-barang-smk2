@@ -4,101 +4,107 @@ namespace App\Http\Controllers;
 
 use App\Models\Peminjaman;
 use App\Models\Barang;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
-class PeminjamanController extends Controller
+class PengembalianController extends Controller
 {
-    // 1. SCAN QR CODE (Mencari barang berdasarkan kode unik hasil scan)
-    public function scanQr(Request $request)
+    // 1. PROSES PENGEMBALIAN BARU (Akses khusus Sarpras sebagai verifikator)
+    public function store(Request $request): JsonResponse
     {
         $this->validate($request, [
-            'kode_barang' => 'required|string'
+            'peminjaman_id'  => 'required|exists:peminjamans,id', // PERBAIKAN: Sesuaikan dengan nama tabel database kamu (biasanya plural 'peminjamans')
+            'kondisi_kembali' => 'required|in:baik,rusak,hilang'
         ]);
 
-        // Cari barang di tabel inventaris yang kode_barang-nya cocok
-        $barang = Barang::where('kode_barang', $request->kode_barang)->first();
+        // Cari data peminjaman yang statusnya masih 'dipinjam'
+        $peminjaman = Peminjaman::where('id', $request->peminjaman_id)
+                                ->where('status_pinjam', 'dipinjam')
+                                ->first();
 
-        if (!$barang) {
+        if (!$peminjaman) {
             return response()->json([
                 'success' => false,
-                'message' => 'Barang tidak dikenali! QR Code tidak valid.'
+                'message' => 'Data peminjaman tidak ditemukan atau barang sudah dikembalikan sebelumnya!'
             ], 404);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'QR Code Berhasil Di-scan! Data barang ditemukan.',
-            'data'    => [
-                'id'          => $barang->id,
-                'nama_barang' => $barang->nama_barang,
-                'kategori'    => $barang->kategori,
-                'kondisi'     => $barang->kondisi,
-                'stok_tersedia' => $barang->jumlah // Menampilkan sisa stok alat yang bisa dipinjam
-            ]
-        ], 200);
-    }
+        // Jalankan transaksi database aman
+        DB::beginTransaction();
 
-    // 2. PROSES PEMINJAMAN BARU/ALAT
-    public function store(Request $request)
-    {
-        $user = $request->auth; // Ambil data siswa/jurusan yang login
+        try {
+            // A. Update status di tabel peminjaman
+            $peminjaman->update([
+                'tanggal_kembali' => date('Y-m-d H:i:s'),
+                'status_pinjam'   => 'kembali'
+            ]);
 
-        $this->validate($request, [
-            'barang_id'     => 'required|exists:barang,id',
-            'jumlah_pinjam' => 'required|integer|min:1',
-            'keperluan'     => 'required|string'
-        ]);
+            // B. Kembalikan stok barang ke tabel inventaris (Hanya jika kondisinya 'baik' atau 'rusak')
+            if ($request->kondisi_kembali !== 'hilang') {
+                /** @var Barang $barang */
+                $barang = Barang::find($peminjaman->barang_id);
 
-        $barang = Barang::find($request->barang_id);
+                if ($barang) {
+                    $barang->jumlah += $peminjaman->jumlah_pinjam;
 
-        // Validasi stok: Apakah alat yang mau dipinjam mencukupi?
-        if ($barang->jumlah < $request->jumlah_pinjam) {
+                    // Jika pas kembali ternyata rusak, update kondisi barangnya di inventaris
+                    if ($request->kondisi_kembali === 'rusak') {
+                        $barang->kondisi = 'Rusak Sebagian';
+                    }
+
+                    $barang->save();
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Proses pengembalian alat berhasil!',
+                'data'    => $peminjaman
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal meminjam! Stok alat yang tersedia tidak mencukupi.'
-            ], 400);
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Jalankan peminjaman (Kurangi stok barang langsung)
-        $barang->jumlah -= $request->jumlah_pinjam;
-        $barang->save();
-
-        // Buat data nota peminjaman
-        $peminjaman = Peminjaman::create([
-            'user_id'          => $user->id,
-            'barang_id'        => $request->barang_id,
-            'jumlah_pinjam'    => $request->jumlah_pinjam,
-            'tanggal_pinjam'   => date('Y-m-d H:i:s'),
-            'tanggal_kembali'  => null, // Null karena belum dikembalikan
-            'status_pinjam'    => 'dipinjam', // Status awal langsung aktif dipinjam
-            'keperluan'        => $request->keperluan
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Peminjaman alat berhasil diproses! Stok terpotong.',
-            'data'    => $peminjaman
-        ], 21);
     }
 
-    // 3. RIWAYAT PEMINJAMAN
-    public function riwayat(Request $request)
+    // 2. RIWAYAT PENGEMBALIAN (Menampilkan daftar alat yang SUDAH kembali)
+    public function riwayatKembali(Request $request): JsonResponse
     {
-        $user = $request->auth;
+        // PERBAIKAN LUMEN: Menggunakan $request->user() agar konsisten dengan PeminjamanController
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
 
-        // Jika yang login adalah siswa atau jurusan, tampilkan riwayat pribadi mereka saja
+        // Antisipasi jika user tidak terdeteksi
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User tidak terautentikasi.'
+            ], 401);
+        }
+
+        // Jika siswa atau jurusan, tampilkan riwayat pengembalian milik mereka sendiri
         if (in_array($user->role, ['siswa', 'jurusan'])) {
             $riwayat = Peminjaman::where('user_id', $user->id)
-                        ->orderBy('id', 'DESC')
+                        ->where('status_pinjam', 'kembali')
+                        ->orderBy('tanggal_kembali', 'DESC')
                         ->get();
         } else {
-            // Jika Sarpras yang mengakses, tampilkan semua riwayat peminjaman di sekolah
-            $riwayat = Peminjaman::orderBy('id', 'DESC')->get();
+            // Jika Sarpras yang melihat, tampilkan semua daftar pengembalian sekolah
+            $riwayat = Peminjaman::where('status_pinjam', 'kembali')
+                        ->orderBy('tanggal_kembali', 'DESC')
+                        ->get();
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Daftar riwayat peminjaman berhasil diambil',
+            'message' => 'Daftar riwayat pengembalian berhasil diambil.',
             'data'    => $riwayat
         ], 200);
     }
