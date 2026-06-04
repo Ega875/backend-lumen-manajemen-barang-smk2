@@ -37,6 +37,15 @@ class AuthController extends Controller
             ], 403);
         }
 
+        // --- SISIPAN BARU: Proteksi agar Akun Siswa tidak bisa jebol sistem Pengajuan ---
+        if ($user->role === 'siswa') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak! Akun Siswa tidak diizinkan masuk ke Sistem Pengajuan Barang.'
+            ], 403);
+        }
+        // -------------------------------------------------------------------------------
+
         // 5. Racik isi data (Payload) di dalam Token JWT
         $payload = [
             'iss' => "manajemen-barang-smk-api", // Nama/id pembuat token

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('username');
             $table->string('email')->unique();
             $table->string('password');
-            $table->enum('role', ['jurusan', 'sarpras', 'keuangan', 'kepsek', 'siswa'])->default('jurusan');
+            $table->enum('role', ['jurusan', 'sarpras', 'keuangan', 'kepsek', 'siswa']);
             $table->enum('status', ['aktif', 'nonaktif'])->default('aktif');
             $table->timestamps();
         });

@@ -62,4 +62,34 @@ class UserController extends Controller
             'data'    => $user
         ], 200);
     }
+
+    // --- SISIPAN BARU: Memperbarui/Reset Password User yang Lupa oleh Sarpras ---
+    public function resetPassword(Request $request, $id)
+    {
+        // 1. Validasi input password baru
+        $this->validate($request, [
+            'password' => 'required|min:6'
+        ]);
+
+        // 2. Cari user berdasarkan ID
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data user tidak ditemukan'
+            ], 404);
+        }
+
+        // 3. Update password baru yang sudah di-hash
+        $user->update([
+            'password' => Hash::make($request->password)
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Password untuk user {$user->nama_user} (Role: {$user->role}) berhasil diperbarui!"
+        ], 200);
+    }
+    // ----------------------------------------------------------------------------
 }

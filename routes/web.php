@@ -29,9 +29,11 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     $router->get('/users', 'UserController@index');
     $router->post('/users', 'UserController@store');
     $router->get('/users/{id}', 'UserController@show');
+
+    // Route reset password, bikin akun yang dikelola oleh sarpras
 });
 
-//----------Batas Atas Sistem Pengajuan Barang----------//
+//-----------------------Batas Atas Sistem Pengajuan Barang-------------------
 
 // =========================================================================
 // Rute Master Barang Umum (Sistem Pengajuan)
