@@ -30,7 +30,9 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     $router->post('/users', 'UserController@store');
     $router->get('/users/{id}', 'UserController@show');
 
-    // Route reset password, bikin akun yang dikelola oleh sarpras
+    // Route reset password, bikin akun yang dikelola oleh sarpras\
+    // --- SISIPKAN RUTE BARU INI DI DALAM GRUP MIDDLEWARE AUTH ---
+    $router->put('users/{id}/reset-password', 'UserController@resetPassword');
 });
 
 //-----------------------Batas Atas Sistem Pengajuan Barang-------------------
