@@ -70,4 +70,25 @@ class AuthController extends Controller
             ]
         ], 200);
     }
+
+    // --- TAMBAHAN BARU: FUNGSI LOGOUT BACKEND ---
+    public function logout()
+    {
+        try {
+            // Menghancurkan token JWT yang dibawa oleh user saat ini agar mati total
+            auth()->logout();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Berhasil logout, sesi di server telah dihapus!'
+            ], 200);
+
+        } catch (\Exception $e) {
+            // Antisipasi jika ada kendala sistem saat menghancurkan token
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal melakukan logout, silakan coba lagi.'
+            ], 500);
+        }
+    }
 }

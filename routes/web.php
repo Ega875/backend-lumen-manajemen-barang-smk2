@@ -25,6 +25,11 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     // Route Autentikasi Utama (Akses Terbuka Umum)
     $router->post('/login', 'AuthController@login');
 
+    // Route Logout (Nanti bisa diamankan pakai middleware auth)
+    $router->group(['middleware' => 'auth'], function () use ($router) {
+        $router->post('api/logout', 'AuthController@logout');
+    });
+
     // Route Manajemen User (Nanti bisa diamankan pakai middleware)
     $router->get('/users', 'UserController@index');
     $router->post('/users', 'UserController@store');
@@ -33,7 +38,7 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     // Route reset password, bikin akun yang dikelola oleh sarpras\
     // --- SISIPKAN RUTE BARU INI DI DALAM GRUP MIDDLEWARE AUTH ---
     $router->put('users/{id}/reset-password', 'UserController@resetPassword');
-});
+    });
 
 //-----------------------Batas Atas Sistem Pengajuan Barang-------------------
 
