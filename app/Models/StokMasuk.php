@@ -7,9 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class StokMasuk extends Model
 {
     protected $table = 'stok_masuk';
+
     protected $fillable = [
         'barang_id',
-        'jumlah',
+        'jumlah_masuk', // <-- PERBAIKAN: disamakan dengan migrasi database
         'tanggal_masuk',
         'keterangan',
     ];

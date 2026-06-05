@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 date_default_timezone_set('Asia/Jakarta'); // Set timezone sesuai kebutuhan
 
 class AuthController extends Controller
@@ -37,10 +38,20 @@ class AuthController extends Controller
             ], 403);
         }
 
+        // --- SISIPAN BARU: Proteksi agar Akun Siswa tidak bisa jebol sistem Pengajuan ---
+        // if ($user->role === 'siswa') {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'Akses ditolak! Akun Siswa tidak diizinkan masuk ke Sistem Pengajuan Barang.'
+        //     ], 403);
+        // }
+        // -------------------------------------------------------------------------------
+
         // 5. Racik isi data (Payload) di dalam Token JWT
         $payload = [
             'iss' => "manajemen-barang-smk-api", // Nama/id pembuat token
-            'sub' => $user->id,                  // Menyimpan ID user
+            'sub' => $user->id,
+            'role' => $user->role,                  // Menyimpan ID user
             'iat' => time(),                     // Waktu token dibuat
             'exp' => time() + (60 * 60 * 8)      // Token kadaluwarsa dalam 8 Jam
         ];

@@ -8,11 +8,14 @@ use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Lumen\Auth\Authorizable;
+use Tymon\JWTAuth\Contracts\JWTSubject;
 
 class User extends Model implements AuthenticatableContract, AuthorizableContract
 {
     use Authenticatable, Authorizable, HasFactory;
 
+    // Tambahkan 2 fungsi wajib ini di bagian bawah:
+    
     /**
      * The attributes that are mass assignable.
      *
@@ -20,7 +23,9 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
      */
     protected $fillable = [
         'nama_user',
+        'username', // Ditambahkan agar tidak kosong saat register
         'email',
+        'password', // Ditambahkan agar bisa disimpan dan diverifikasi saat login
         'role',
         'status',
     ];
@@ -33,6 +38,19 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
     protected $hidden = [
         'password',
     ];
+
+    // --- JWT Requirement Methods ---
+    public function getJWTIdentifier()
+    {
+        return $this->getKey();
+    }
+
+    public function getJWTCustomClaims()
+    {
+        return [
+            'role' => $this->role // Memasukkan role ke dalam token agar frontend tahu ini siswa/sarpras/dll
+        ];
+    }
 
     public function peminjaman()
     {

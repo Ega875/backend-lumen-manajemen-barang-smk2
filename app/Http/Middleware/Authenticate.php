@@ -3,40 +3,55 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Contracts\Auth\Factory as Auth;
+use Exception;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 
 class Authenticate
 {
-    /**
-     * The authentication guard factory instance.
-     *
-     * @var \Illuminate\Contracts\Auth\Factory
-     */
-    protected $auth;
-
-    /**
-     * Create a new middleware instance.
-     *
-     * @param  \Illuminate\Contracts\Auth\Factory  $auth
-     * @return void
-     */
-    public function __construct(Auth $auth)
-    {
-        $this->auth = $auth;
-    }
-
     /**
      * Handle an incoming request.
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  \Closure  $next
-     * @param  string|null  $guard
+     * @param  string[]  ...$roles
      * @return mixed
      */
-    public function handle($request, Closure $next, $guard = null)
+    public function handle($request, Closure $next, ...$roles)
     {
-        if ($this->auth->guard($guard)->guest()) {
-            return response('Unauthorized.', 401);
+        // 1. Ambil token dari header Authorization
+        $authHeader = $request->header('Authorization');
+
+        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Token tidak disediakan atau format salah.'
+            ], 401);
+        }
+
+        $token = str_replace('Bearer ', '', $authHeader);
+
+        try {
+            // 2. Decode token JWT-mu
+            $secretKey = env('JWT_SECRET', 'rahasia_super_secure_123');
+            $decoded = JWT::decode($token, new Key($secretKey, 'HS256'));
+
+            // Simpan data user ke request biar bisa diakses di controller
+            $request->auth = $decoded;
+
+            // 3. Cek Hak Akses / Role jika ada parameter tambahan di route
+            if (!empty($roles) && !in_array($decoded->role, $roles)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak! Role Anda tidak diizinkan.'
+                ], 403);
+            }
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Token kadaluwarsa atau tidak valid.'
+            ], 401);
         }
 
         return $next($request);

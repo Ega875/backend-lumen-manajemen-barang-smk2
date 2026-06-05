@@ -13,22 +13,15 @@ $router->get('/', function () use ($router) {
 
 // Grup Rute API (Tempat kita menaruh endpoint database besok)
 $router->group(['prefix' => 'api'], function () use ($router) {
-    
-    // Rute tes di dalam grup API: http://localhost:8000/api/test
-    $router->get('/test', function () {
-        return response()->json([
-            'status' => 'connected',
-            'message' => 'Koneksi ke API Server Berhasil!'
-        ]);
+    // Route untuk Register dan Login
+    $router->post('register', 'UserController@store');
+    $router->post('login', 'UserController@login');
+
+    // Route yang diproteksi (Harus login dulu baru bisa diakses)
+    $router->group(['middleware' => 'auth'], function () use ($router) {
+        $router->get('users', 'UserController->index');
+        $router->get('users/{id}', 'UserController->show');
     });
-
-    // Route Autentikasi Utama (Akses Terbuka Umum)
-    $router->post('/login', 'AuthController@login');
-
-    // Route Manajemen User (Nanti bisa diamankan pakai middleware)
-    $router->get('/users', 'UserController@index');
-    $router->post('/users', 'UserController@store');
-    $router->get('/users/{id}', 'UserController@show');
 });
 
 //----------Batas Atas Sistem Pengajuan Barang----------//
@@ -69,7 +62,7 @@ $router->group(['middleware' => 'role:jurusan'], function () use ($router) {
     $router->group(['middleware' => 'role:jurusan,sarpras,keuangan,kepsek'], function () use ($router) {
         // Ambil daftar barang di dalam satu nota pengajuan
         $router->get('/pengajuan-detail/{pengajuan_id}', 'DetailPengajuanController@getByPengajuan');
-        
+
         // Update harga/jumlah barang di dalam nota (Hanya bisa ditembak oleh Sarpras/Keuangan lewat kodingan controller)
         $router->put('/pengajuan-detail/{id}', 'DetailPengajuanController@update');
     });
@@ -103,46 +96,66 @@ $router->group(['middleware' => 'role:sarpras,keuangan,kepsek'], function () use
     //----------Batas Bawah Sistem Pengajuan Barang----------//
 
 
-    //----------Batas Atas Sistem Tracking dan Inventaris Barang----------//
+   //----------Batas Atas Sistem Tracking dan Inventaris Barang----------//
 
-    // Rute Barang Inventaris (Akses Umum untuk melihat barang yang bisa dipinjam)
-    $router->get('/barang', 'BarangController@index');
+// =========================================================================
+// 1. RUTE PUBLIK (Bisa diakses siapa saja tanpa token/login)
+// =========================================================================
+$router->post('/login', 'AuthController@login');
 
-    // Rute Khusus Stok Masuk & Stok Keluar (Hanya untuk Sarpras)
-    $router->group(['middleware' => 'role:sarpras'], function () use ($router) {
-        $router->post('/barang/{id}/stok-masuk', 'BarangController@stokMasuk');
-        $router->post('/barang/{id}/stok-keluar', 'BarangController@stokKeluar');
+$router->group(['prefix' => 'api'], function () use ($router) {
+    $router->get('/barang', 'BarangController@index'); // Melihat daftar inventaris publik
+});
+
+
+// =========================================================================
+// 2. KELOMPOK RUTE YANG WAJIB LOGIN (Terproteksi JWT)
+// =========================================================================
+$router->group(['prefix' => 'api', 'middleware' => 'auth'], function () use ($router) {
+
+    // Rute Umum Dashboard & Profil
+    $router->get('/profile', 'UserController@profile');
+    $router->get('/dashboard-siswa', 'SiswaController@index');
+
+    // ---------------------------------------------------------------------
+    // Rute Pengajuan Barang (Hanya JURUSAN & SARPRAS)
+    // ---------------------------------------------------------------------
+    $router->group(['middleware' => 'auth:jurusan,sarpras'], function () use ($router) {
+        $router->post('/pengajuan-barang', 'PengajuanController@store');
     });
 
-    // Rute Modul Peminjaman & Scan QR (Aktor: Siswa, Jurusan, Sarpras)
-    $router->group(['middleware' => 'role:siswa,jurusan,sarpras'], function () use ($router) {
-        $router->post('/peminjaman/scan', 'PeminjamanController@scanQr'); // Jalur tembak scan QR
-        $router->post('/peminjaman', 'PeminjamanController@store');       // Jalur pinjam barang
-        $router->get('/peminjaman/riwayat', 'PeminjamanController@riwayat'); // Jalur lihat riwayat pinjam
+    // ---------------------------------------------------------------------
+    // Rute Khusus Manajemen Stok (Hanya SARPRAS)
+    // ---------------------------------------------------------------------
+    $router->group(['middleware' => 'auth:sarpras'], function () use ($router) {
+        $router->post('/barang', 'BarangController@store'); // Tambah barang baru
+        $router->post('/barang/{id}/stok-masuk', 'BarangController@stokMasuk'); // Update angka stok
+        $router->post('/barang/{id}/stok-keluar', 'BarangController@stokKeluar'); // Update angka stok
+
+        $router->post('/stok-masuk/{id}', 'StokMasukController@store'); // Catat riwayat stok masuk
+        $router->post('/stok-keluar/{id}', 'StokKeluarController@store'); // Catat riwayat stok keluar
     });
 
-    // Rute Modul Pengembalian Alat (Aktor: Siswa, Jurusan, Sarpras)
-    $router->group(['middleware' => 'role:siswa,jurusan,sarpras'], function () use ($router) {
-        // Jalur untuk melihat list apa saja yang sudah dikembalikan
-        $router->get('/pengembalian/riwayat', 'PengembalianController@riwayatKembali');
-        
-        // Jalur eksekusi pengembalian barang (Idealnya hanya ditembak oleh pihak 'sarpras' di frontend)
-        $router->post('/pengembalian', 'PengembalianController@store');
+    // ---------------------------------------------------------------------
+    // Rute Modul Peminjaman & Scan (SISWA, JURUSAN, SARPRAS)
+    // ---------------------------------------------------------------------
+    $router->group(['middleware' => 'auth:siswa,jurusan,sarpras'], function () use ($router) {
+        $router->post('/peminjaman', 'PeminjamanController@store'); // Proses meminjam barang baru
+        $router->get('/peminjaman/riwayat', 'PeminjamanController@riwayat'); // Lihat riwayat pinjam
+
+        // Fitur Scan QR (Jika nanti kamu butuh logika khusus scan)
+        $router->post('/peminjaman/scan', 'PeminjamanController@scanQr');
+        $router->post('/scan-qr', 'ScanQrController@scan');
     });
 
-    // Rute Khusus Stok Masuk (Hanya untuk Sarpras)
-    $router->post('/stok-masuk/{id}', ['middleware' => 'role:sarpras', 'uses' => 'StokMasukController@store']);
+    // ---------------------------------------------------------------------
+    // Rute Modul Pengembalian Alat (SISWA, JURUSAN, SARPRAS)
+    // ---------------------------------------------------------------------
+    $router->group(['middleware' => 'auth:siswa,jurusan,sarpras'], function () use ($router) {
+        $router->post('/pengembalian', 'PengembalianController@store'); // Eksekusi pengembalian barang
+        $router->get('/pengembalian/riwayat', 'PengembalianController@riwayatKembali'); // Lihat riwayat kembali
+    });
 
-    // Rute Khusus Stok Keluar (Hanya untuk Sarpras)
-    $router->post('/stok-keluar/{id}', ['middleware' => 'role:sarpras', 'uses' => 'StokKeluarController@store']);
+});
 
-    // Rute Khusus Scan QR Code Barang
-    $router->post('/scan-qr', ['middleware' => 'role:siswa,jurusan,sarpras', 'uses' => 'ScanQrController@scan']);
-
-    // Rute Khusus Riwayat Peminjaman (Akses: Siswa, Jurusan, Sarpras)
-    $router->get('/riwayat-peminjaman', ['middleware' => 'role:siswa,jurusan,sarpras', 'uses' => 'RiwayatPeminjamanController@index']);
-
-    // Rute Khusus Riwayat Pengembalian (Akses: Siswa, Jurusan, Sarpras)
-    $router->get('/riwayat-pengembalian', ['middleware' => 'role:siswa,jurusan,sarpras', 'uses' => 'RiwayatPengembalianController@index']);
-
-    //----------Batas Atas Sistem Tracking dan Inventaris Barang----------//
+    //----------Batas Bawah Sistem Tracking dan Inventaris Barang----------//

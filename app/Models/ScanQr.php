@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class ScanQr extends Model
 {
     protected $table = 'scan_qr';
+
     protected $fillable = [
         'user_id',
         'barang_id',
@@ -14,8 +15,14 @@ class ScanQr extends Model
         'hasil_scan',
     ];
 
-    public function peminjaman()
+    // PERBAIKAN: Relasi disesuaikan dengan foreignId yang ada di migrasi kamu
+    public function user()
     {
-        return $this->belongsTo(Peminjaman::class, 'peminjaman_id');
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function barang()
+    {
+        return $this->belongsTo(Barang::class, 'barang_id');
     }
 }

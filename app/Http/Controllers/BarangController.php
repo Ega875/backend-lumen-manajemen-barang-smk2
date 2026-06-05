@@ -7,12 +7,12 @@ use Illuminate\Http\Request;
 
 class BarangController extends Controller
 {
-    // 1. Tampilkan Semua Data Barang Inventaris (Untuk Siswa & Sarpras)
+    // 1. Tampilkan Semua Data Barang Inventaris (Untuk Siswa, Sarpras, dll)
+    // GET -> /api/barang
     public function index()
     {
-        // Temanmu butuh semua kolom untuk inventaris, jadi kita all() atau select sesuai kebutuhan
         $barang = Barang::all();
-        
+
         return response()->json([
             'success' => true,
             'message' => 'Daftar Barang Inventaris Berhasil Diambil',
@@ -20,7 +20,39 @@ class BarangController extends Controller
         ], 200);
     }
 
-    // 2. Fitur STOK MASUK (Hanya boleh diakses oleh Sarpras)
+    // 2. TAMBAHAN UTAMA: Fitur Tambah Barang Baru (Akses: Sarpras)
+    // POST -> /api/barang
+    public function store(Request $request)
+    {
+        // Validasi data yang dikirim dari frontend sesuai struktur migrasi barang kamu
+        $this->validate($request, [
+            'nama_barang' => 'required|string',
+            'kode_barang' => 'required|string|unique:barang,kode_barang',
+            'kategori'    => 'required|string',
+            'jumlah'      => 'required|integer|min:0',
+            'kondisi'     => 'required|string',
+            'lokasi'      => 'required|string',
+        ]);
+
+        // Simpan data barang baru ke database
+        $barang = Barang::create([
+            'nama_barang' => $request->nama_barang,
+            'kode_barang' => $request->kode_barang,
+            'kategori'    => $request->kategori,
+            'jumlah'      => $request->jumlah,
+            'kondisi'     => $request->kondisi,
+            'lokasi'      => $request->lokasi,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Barang baru berhasil ditambahkan ke inventaris!',
+            'data'    => $barang
+        ], 201);
+    }
+
+    // 3. Fitur STOK MASUK (Akses: Sarpras)
+    // POST -> /api/barang/{id}/stok-masuk
     public function stokMasuk(Request $request, $id)
     {
         $this->validate($request, [
@@ -47,7 +79,8 @@ class BarangController extends Controller
         ], 200);
     }
 
-    // 3. Fitur STOK KELUAR (Hanya boleh diakses oleh Sarpras, misal barang rusak/menyusut)
+    // 4. Fitur STOK KELUAR (Akses: Sarpras)
+    // POST -> /api/barang/{id}/stok-keluar
     public function stokKeluar(Request $request, $id)
     {
         $this->validate($request, [

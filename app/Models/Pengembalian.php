@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Pengembalian extends Model
 {
     protected $table = 'pengembalian';
+
     protected $fillable = [
         'peminjaman_id',
         'tanggal_kembali',
@@ -14,8 +15,16 @@ class Pengembalian extends Model
         'deskripsi_kembali',
     ];
 
+    // Relasi ke data peminjaman asalnya
     public function peminjaman()
     {
         return $this->belongsTo(Peminjaman::class, 'peminjaman_id');
     }
+
+    // Tambahkan ini di dalam class Peminjaman jika memakai tabel terpisah
+public function pengembalian()
+{
+    return $this->hasOne(Pengembalian::class, 'peminjaman_id');
+}
+
 }
