@@ -13,7 +13,8 @@ class DatabaseSeeder extends Seeder
      * @return void
      */
     public function run()
-    {
-        $this->call(UserSeeder::class);
-    }
+{
+    $this->call(UserSeeder::class); // User tetap kepake dan di-update datanya
+    $this->call(BarangSeeder::class); // Barang juga otomatis masuk
+}
 }

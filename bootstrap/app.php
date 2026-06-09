@@ -4,6 +4,17 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+// =========================================================================
+// PERBAIKAN UTAMA: Interupsi Direct OPTIONS (Mencegah Preflight Terblokir)
+// =========================================================================
+if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: POST, GET, OPTIONS, PUT, DELETE');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+    header('Access-Control-Allow-Credentials: true');
+    exit(0);
+}
+
 require_once __DIR__.'/../vendor/autoload.php';
 
 (new Laravel\Lumen\Bootstrap\LoadEnvironmentVariables(
@@ -55,7 +66,7 @@ $app->middleware([
     App\Http\Middleware\CorsMiddleware::class
 ]);
 
-// PERBAIKAN: Semua Route Middleware digabung menjadi satu array agar tidak duplikat
+// Route Middleware
 $app->routeMiddleware([
     'auth.jwt' => App\Http\Middleware\AuthMiddleware::class,
     'auth'     => App\Http\Middleware\Authenticate::class,
@@ -68,7 +79,6 @@ $app->routeMiddleware([
 |--------------------------------------------------------------------------
 */
 
-// PERBAIKAN: Registrasi JWT dikelompokkan di sini bersama provider lainnya
 $app->register(Tymon\JWTAuth\Providers\LumenServiceProvider::class);
 
 /*

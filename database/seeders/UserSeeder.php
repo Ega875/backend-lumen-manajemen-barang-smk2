@@ -15,15 +15,18 @@ class UserSeeder extends Seeder
      */
     public function run()
     {
-        // Kosongkan tabel user terlebih dahulu agar tidak duplikat saat di-seed ulang
-        //DB::table('users')->truncate();
+        // 1. PERBAIKAN UTAMA: Matikan proteksi foreign key constraint agar bisa di-truncate
+        DB::statement('SET FOREIGN_KEY_CHECKS = 0;');
 
-        // Input data user percontohan untuk semua role sistem kamu dan temanmu
+        // 2. Kosongkan tabel users (Sekarang dijamin lancar tanpa error)
+        DB::table('users')->truncate();
+
+        // 3. Input ulang data user percontohan
         DB::table('users')->insert([
             [
                 'nama_user' => 'Pak Budi (Sarpras)',
                 'username'  => 'sarpras',
-                'password'  => Hash::make('password123'), // Password untuk login
+                'password'  => Hash::make('password123'),
                 'email'     => 'sarpras@example.com',
                 'role'      => 'sarpras',
                 'created_at'=> date('Y-m-d H:i:s'),
@@ -66,5 +69,8 @@ class UserSeeder extends Seeder
                 'updated_at'=> date('Y-m-d H:i:s'),
             ],
         ]);
+
+        // 4. PERBAIKAN UTAMA: Aktifkan kembali proteksi foreign key demi keamanan database
+        DB::statement('SET FOREIGN_KEY_CHECKS = 1;');
     }
 }
