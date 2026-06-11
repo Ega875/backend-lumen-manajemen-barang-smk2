@@ -16,18 +16,18 @@ class BarangController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Daftar Barang Inventaris Berhasil Diambil',
-            'data'    => $barang
+            'data'    => $barang // Dipastikan dibungkus dalam key 'data' agar Vue dataFilter .filter() tidak error
         ], 200);
     }
 
-    // 2. TAMBAHAN UTAMA: Fitur Tambah Barang Baru (Akses: Sarpras)
+    // 2. Fitur Tambah Barang Baru (Akses: Sarpras)
     // POST -> /api/barang
     public function store(Request $request)
     {
-        // Validasi data yang dikirim dari frontend sesuai struktur migrasi barang kamu
+        // PERBAIKAN: Mengubah 'unique:barang' menjadi 'unique:barangs' (sesuaikan dengan nama tabel migrasi kamu)
         $this->validate($request, [
             'nama_barang' => 'required|string',
-            'kode_barang' => 'required|string|unique:barang,kode_barang',
+            'kode_barang' => 'required|string|unique:barangs,kode_barang',
             'kategori'    => 'required|string',
             'jumlah'      => 'required|integer|min:0',
             'kondisi'     => 'required|string',

@@ -68,9 +68,9 @@ $app->middleware([
 
 // Route Middleware
 $app->routeMiddleware([
-    'auth.jwt' => App\Http\Middleware\AuthMiddleware::class,
-    'auth'     => App\Http\Middleware\Authenticate::class,
-    'role'     => App\Http\Middleware\RoleMiddleware::class
+    'auth' => App\Http\Middleware\Authenticate::class,
+    'role' => App\Http\Middleware\RoleMiddleware::class, // Contoh nama middleware role kamu
+    'cors' => App\Http\Middleware\CorsMiddleware::class, // <-- WAJIB DITAMBAHKAN
 ]);
 
 /*

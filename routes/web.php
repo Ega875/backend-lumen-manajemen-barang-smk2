@@ -3,33 +3,34 @@
 /** @var \Laravel\Lumen\Routing\Router $router */
 
 // =========================================================================
-// Rute Bawaan & Status Utama
+// Rute Bawaan & Status Utama (Tambahkan CORS agar bisa dicek dari frontend)
 // =========================================================================
-$router->get('/', function () use ($router) {
+$router->get('/', ['middleware' => 'cors', function () use ($router) {
     return response()->json([
         'status' => 'success',
         'message' => 'Lumen API Sistem Gabungan (Pengajuan & Inventaris) Siap Digunakan!',
         'version' => $router->app->version()
     ]);
-});
+}]);
 
 // =========================================================================
-// 1. KELOMPOK RUTE PUBLIK (BISA DIAKSES TANPA TOKEN / LOGIN)
+// 1. KELOMPOK RUTE PUBLIK (BISA DIAKSES TANPA TOKEN / LOGIN) + CORS
 // =========================================================================
-$router->group(['prefix' => 'api'], function () use ($router) {
+$router->group(['prefix' => 'api', 'middleware' => 'cors'], function () use ($router) {
 
-    // Jalur resmi login dan register (Gunakan AuthController sesuai frontend)
+    // Jalur resmi login dan register
     $router->post('register', 'UserController@store');
     $router->post('login', 'AuthController@login');
 
-    // Melihat daftar inventaris secara publik
+    // Melihat daftar inventaris secara publik (Ini yang dipakai komponen DaftarBarang.vue kamu)
     $router->get('barang', 'BarangController@index');
 });
 
 // =========================================================================
-// 2. KELOMPOK RUTE TERPROTEKSI (WAJIB LOGIN - JWT MIDDLEWARE AUTH)
+// 2. KELOMPOK RUTE TERPROTEKSI (WAJIB LOGIN - JWT & CORS)
 // =========================================================================
-$router->group(['prefix' => 'api', 'middleware' => 'auth'], function () use ($router) {
+// Catatan: 'cors' ditaruh paling depan agar browser mengizinkan preflight request (OPTIONS) sebelum membawa token JWT
+$router->group(['prefix' => 'api', 'middleware' => ['cors', 'auth']], function () use ($router) {
 
     // --- Rute Pengguna Umum ---
     $router->get('users', 'UserController@index');
@@ -67,7 +68,7 @@ $router->group(['prefix' => 'api', 'middleware' => 'auth'], function () use ($ro
         $router->put('master-barang/{id}', 'MasterBarangUmumController@update');
         $router->delete('master-barang/{id}', 'MasterBarangUmumController@destroy');
 
-        // Manajemen Stok Inventaris
+        // Manajemen Stok Inventaris (Terhubung ke fitur masuk/keluar alat)
         $router->post('barang', 'BarangController@store');
         $router->post('barang/{id}/stok-masuk', 'BarangController@stokMasuk');
         $router->post('barang/{id}/stok-keluar', 'BarangController@stokKeluar');
