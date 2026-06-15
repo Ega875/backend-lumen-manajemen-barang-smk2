@@ -25,91 +25,89 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     // Route Autentikasi Utama (Akses Terbuka Umum)
     $router->post('/login', 'AuthController@login');
 
-    // Route Logout (Nanti bisa diamankan pakai middleware auth)
-    $router->group(['middleware' => 'auth'], function () use ($router) {
-        $router->post('api/logout', 'AuthController@logout');
-    });
-
     // Route Manajemen User (Nanti bisa diamankan pakai middleware)
     $router->get('/users', 'UserController@index');
     $router->post('/users', 'UserController@store');
     $router->get('/users/{id}', 'UserController@show');
 
-    // Route reset password, bikin akun yang dikelola oleh sarpras\
-    // --- SISIPKAN RUTE BARU INI DI DALAM GRUP MIDDLEWARE AUTH ---
-    $router->put('users/{id}/reset-password', 'UserController@resetPassword');
-    });
 
-//-----------------------Batas Atas Sistem Pengajuan Barang-------------------
+//----------Batas Atas Sistem Pengajuan Barang----------//
 
 // =========================================================================
 // Rute Master Barang Umum (Sistem Pengajuan)
 // =========================================================================
 
-// 1. Jalur Khusus JURUSAN: Hanya jurusan yang boleh melihat katalog pilihan barang
-$router->group(['middleware' => 'role:jurusan'], function () use ($router) {
+// 1. Jalur LIHAT DATA: Boleh diakses Jurusan & Sarpras
+$router->group(['middleware' => 'role:jurusan,sarpras'], function () use ($router) {
     $router->get('/master-barang', 'MasterBarangUmumController@index');
     $router->get('/master-barang/{id}', 'MasterBarangUmumController@show');
 });
 
-// 2. Jalur Khusus SARPRAS: Mengelola/CRUD isi katalog barang standar
+// 2. Jalur EKSEKUSI DATA (CRUD): Khusus Sarpras
 $router->group(['middleware' => 'role:sarpras'], function () use ($router) {
-    $router->post('/master-barang', 'MasterBarangUmumController@store');         // Tambah barang baru
-    $router->put('/master-barang/{id}', 'MasterBarangUmumController@update');    // Edit data barang
-    $router->delete('/master-barang/{id}', 'MasterBarangUmumController@destroy'); // Hapus barang dari katalog
+    $router->post('/master-barang', 'MasterBarangUmumController@store');
+    $router->put('/master-barang/{id}', 'MasterBarangUmumController@update');
+    $router->delete('/master-barang/{id}', 'MasterBarangUmumController@destroy');
 });
 
-// Rute Modul Pengajuan Barang (Sistem Pengajuan)
+// =========================================================================
+// Rute Modul Pengajuan Barang & Tracking (Sistem Pengajuan)
+// =========================================================================
 
-// 1. Grup untuk LIHAT DAFTAR & DETAIL (Bisa diakses oleh semua 4 role untuk review)
+// 1. LIHAT DAFTAR, DETAIL & LOGS (Semua Role bisa melihat)
 $router->group(['middleware' => 'role:jurusan,sarpras,keuangan,kepsek'], function () use ($router) {
     $router->get('/pengajuan', 'PengajuanController@index');
     $router->get('/pengajuan/{id}', 'PengajuanController@show');
+    $router->get('/pengajuan-detail/{pengajuan_id}', 'DetailPengajuanController@getByPengajuan');
+    $router->get('/pengajuan-logs/{pengajuan_id}', 'LogsStatusController@getHistory');
 });
 
-// 2. Grup KELUARAN BARU: Khusus untuk PROSES CHECKOUT (Hanya boleh ditembak oleh Jurusan)
+// 2. BUAT PENGAJUAN BARU (Khusus Jurusan)
 $router->group(['middleware' => 'role:jurusan'], function () use ($router) {
     $router->post('/pengajuan', 'PengajuanController@store');
-
-    $router->put('/pengajuan-detail-revisi/{detail_id}', 'PengajuanController@revisiDetailBarang');
 });
 
-    // Rute Modul Detail Pengajuan Barang
-    $router->group(['middleware' => 'role:jurusan,sarpras,keuangan,kepsek'], function () use ($router) {
-        // Ambil daftar barang di dalam satu nota pengajuan
-        $router->get('/pengajuan-detail/{pengajuan_id}', 'DetailPengajuanController@getByPengajuan');
-        
-        // Update harga/jumlah barang di dalam nota (Hanya bisa ditembak oleh Sarpras/Keuangan lewat kodingan controller)
-        $router->put('/pengajuan-detail/{id}', 'DetailPengajuanController@update');
-    });
+// =========================================================================
+// Rute Eksekusi Persetujuan & Revisi (YANG KEMARIN BIKIN ERROR)
+// =========================================================================
 
-    // =========================================================================
+// Wajib dibungkus middleware gabungan agar Lumen mengenali User ID yang menekan tombol
+$router->group(['middleware' => 'role:jurusan,sarpras,keuangan,kepsek'], function () use ($router) {
+    
+    // Jalur Update Status (ACC/Tolak/Revisi) oleh Sarpras/Keuangan/Kepsek
+    $router->post('/pengajuan-status/{id}', 'PengajuanController@updateStatus');
+
+    // Jalur Simpan Form Revisi Massal & Pengajuan Ulang oleh Jurusan
+    $router->post('/pengajuan-detail/{id}', 'PengajuanController@updateDetail');
+
+    // TAMBAHAN BARU: Jalur untuk menghapus/membatalkan berkas
+    $router->delete('/pengajuan/{id}', 'PengajuanController@destroy');
+    
+});
+
+// =========================================================================
 // Rute Modul Keranjang Belanja (Sistem Pengajuan)
 // =========================================================================
 
 // Seluruh aktivitas keranjang dikunci total hanya untuk role JURUSAN
 $router->group(['middleware' => 'role:jurusan'], function () use ($router) {
-    $router->get('/keranjang', 'KeranjangController@index');          // Lihat isi keranjang
-    $router->post('/keranjang', 'KeranjangController@store');         // Tambah item (standar / kustom)
-    $router->delete('/keranjang/{id}', 'KeranjangController@destroy'); // Hapus item dari keranjang
+    $router->get('/keranjang', 'KeranjangController@index');
+    $router->post('/keranjang', 'KeranjangController@store');
+    $router->delete('/keranjang/{id}', 'KeranjangController@destroy');
 });
 
 // =========================================================================
-// Rute Modul Logs Status (Tracking & Approval)
+// Rute Manajemen Akun (Khusus Sarpras / Super Admin)
 // =========================================================================
-
-// 1. Jalur Timeline: Bisa diakses oleh SEMUA role yang terlibat untuk cek posisi nota
-$router->group(['middleware' => 'role:jurusan,sarpras,keuangan,kepsek'], function () use ($router) {
-    $router->get('/pengajuan-logs/{pengajuan_id}', 'LogsStatusController@getHistory');
+$router->group(['middleware' => 'role:sarpras'], function () use ($router) {
+    $router->get('/users', 'UserController@index');
+    $router->post('/users', 'UserController@store');
+    $router->get('/users/{id}', 'UserController@show');
+    $router->put('/users/{id}', 'UserController@update');
+    $router->delete('/users/{id}', 'UserController@destroy');
 });
 
-// 2. Jalur Eksekusi: DIKUNCI KETAT hanya untuk Sarpras, Keuangan, dan Kepsek
-$router->group(['middleware' => 'role:sarpras,keuangan,kepsek'], function () use ($router) {
-    // Diubah menggunakan PUT karena sifatnya memperbarui status pengajuan
-    $router->put('/pengajuan-status/{pengajuan_id}', 'LogsStatusController@updateStatus');
-});
-
-    //----------Batas Bawah Sistem Pengajuan Barang----------//
+//----------Batas Bawah Sistem Pengajuan Barang----------//
 
 
     //----------Batas Atas Sistem Tracking dan Inventaris Barang----------//
@@ -153,5 +151,5 @@ $router->group(['middleware' => 'role:sarpras,keuangan,kepsek'], function () use
 
     // Rute Khusus Riwayat Pengembalian (Akses: Siswa, Jurusan, Sarpras)
     $router->get('/riwayat-pengembalian', ['middleware' => 'role:siswa,jurusan,sarpras', 'uses' => 'RiwayatPengembalianController@index']);
-
+    });
     //----------Batas Atas Sistem Tracking dan Inventaris Barang----------//

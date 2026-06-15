@@ -23,6 +23,6 @@ class Keranjang extends Model
     }
     public function masterBarangUmum()
     {
-        return $this->belongsTo(Barang::class, 'master_barang_id');
+        return $this->belongsTo(MasterBarangUmum::class, 'master_barang_id');
     }
 }

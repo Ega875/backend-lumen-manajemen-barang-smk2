@@ -7,20 +7,12 @@ use Illuminate\Http\Request;
 
 class MasterBarangUmumController extends Controller
 {
-    // 1. Tampilkan Semua Pilihan Barang Standar (HANYA UNTUK JURUSAN)
+    // 1. Tampilkan Semua Pilihan Barang Standar (Sekarang bisa untuk Jurusan & Sarpras)
     public function index(Request $request)
     {
-        $user = $request->auth;
-
-        // Validasi keras: Jika bukan jurusan, tolak aksesnya!
-        if ($user->role !== 'jurusan') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Akses ditolak! Katalog barang standar hanya boleh diakses oleh Jurusan.'
-            ], 403);
-        }
-
-        $barang = MasterBarangUmum::all();
+        // Mengambil semua data, diurutkan berdasarkan Kategori lalu Nama Barang agar rapi di tabel Sarpras dan list Jurusan
+        $barang = MasterBarangUmum::orderBy('kategori', 'ASC')->orderBy('nama_barang', 'ASC')->get();
+        
         return response()->json([
             'success' => true,
             'message' => 'Daftar barang standar berhasil diambil',
@@ -28,18 +20,9 @@ class MasterBarangUmumController extends Controller
         ], 200);
     }
 
-    // 2. Tampilkan Detail Satu Barang Standar (HANYA UNTUK JURUSAN)
+    // 2. Tampilkan Detail Satu Barang Standar
     public function show(Request $request, $id)
     {
-        $user = $request->auth;
-
-        if ($user->role !== 'jurusan') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Akses ditolak!'
-            ], 403);
-        }
-
         $barang = MasterBarangUmum::find($id);
 
         if (!$barang) {
@@ -60,10 +43,10 @@ class MasterBarangUmumController extends Controller
     public function store(Request $request)
     {
         $this->validate($request, [
-            'nama_barang' => 'required|string',
+            'nama_barang'      => 'required|string',
             'spesifikasi_umum' => 'nullable|string',
-            'kategori'    => 'required|string',
-            'harga_satuan' => 'required|numeric'
+            'kategori'         => 'required|string',
+            'harga_satuan'     => 'required|numeric'
         ]);
 
         $barang = MasterBarangUmum::create($request->all());
@@ -79,10 +62,10 @@ class MasterBarangUmumController extends Controller
     public function update(Request $request, $id)
     {
         $this->validate($request, [
-            'nama_barang' => 'required|string',
+            'nama_barang'      => 'required|string',
             'spesifikasi_umum' => 'nullable|string',
-            'kategori'    => 'required|string',
-            'harga_satuan' => 'required|numeric'
+            'kategori'         => 'required|string',
+            'harga_satuan'     => 'required|numeric'
         ]);
 
         $barang = MasterBarangUmum::find($id);

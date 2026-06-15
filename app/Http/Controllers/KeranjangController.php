@@ -19,11 +19,10 @@ class KeranjangController extends Controller
         return null;
     }
 
-    // 1. Tampilkan Isi Keranjang (Hanya milik Jurusan yang sedang login)
+    // Tampilkan Isi Keranjang
     public function index(Request $request)
     {
         $user = $request->auth;
-        
         if ($tertolak = $this->batasiAksesJurusan($user)) return $tertolak;
 
         $keranjang = Keranjang::with('masterBarangUmum')
@@ -37,44 +36,51 @@ class KeranjangController extends Controller
         ], 200);
     }
 
-    // 2. Tambah Barang ke Keranjang (Mendukung Pilihan Standar ATAU Ketik Sendiri)
+    // Tambah Barang ke Keranjang
     public function store(Request $request)
     {
         $user = $request->auth;
-        
         if ($tertolak = $this->batasiAksesJurusan($user)) return $tertolak;
 
         $this->validate($request, [
-            'master_barang_id'   => 'nullable|exists:master_barang_umum,id', // Nullable jika user ketik sendiri
-            'nama_barang_kustom' => 'nullable|string',                      // Diisi jika ketik sendiri
-            'harga_estimasi'     => 'nullable|numeric',                      // Diisi jika ketik sendiri
+            'master_barang_id'   => 'nullable|exists:master_barang_umum,id', 
+            'nama_barang_kustom' => 'nullable|string',                      
+            'harga_estimasi'     => 'nullable|numeric',             
             'jumlah'             => 'required|integer|min:1',
+            'spesifikasi'        => 'nullable|string' 
         ]);
 
         // Skenario A: Jika user memilih BARANG STANDAR dari katalog
         if ($request->master_barang_id) {
+            $masterBarang = \App\Models\MasterBarangUmum::find($request->master_barang_id);
+            if (!$masterBarang) {
+                return response()->json(['success' => false, 'message' => 'Barang standar tidak ditemukan'], 404);
+            }
+
             $cekKeranjang = Keranjang::where('user_id', $user->id)
                             ->where('master_barang_id', $request->master_barang_id)
                             ->first();
 
             if ($cekKeranjang) {
                 $cekKeranjang->jumlah += $request->jumlah;
+                $cekKeranjang->total_harga = $cekKeranjang->jumlah * $cekKeranjang->harga_satuan;
                 $cekKeranjang->save();
                 $keranjang = $cekKeranjang;
             } else {
                 $keranjang = Keranjang::create([
                     'user_id'          => $user->id,
-                    'master_barang_id' => $request->master_barang_id,
-                    'nama_barang_kustom' => null,
-                    'harga_estimasi'   => 0,
+                    'master_barang_id' => $masterBarang->id,
+                    'nama_barang'      => null,
+                    'harga_satuan'     => $masterBarang->harga_satuan,
                     'jumlah'           => $request->jumlah,
-                    'tipe_keranjang'   => 'pengajuan'
+                    'total_harga'      => $masterBarang->harga_satuan * $request->jumlah,
+                    // Mengunci spesifikasi ke kolom spesifikasi_umum milik master barang
+                    'keterangan'       => $masterBarang->spesifikasi_umum ?? 'Spesifikasi standar sekolah.'
                 ]);
             }
         } 
-        // Skenario B: Jika user KETIK SENDIRI karena barang tidak ada di daftar
+        // Skenario B: Jika user KETIK SENDIRI (Input Manual)
         else {
-            // Validasi tambahan agar input kustom tidak kosong
             if (!$request->nama_barang_kustom || !$request->harga_estimasi) {
                 return response()->json([
                     'success' => false,
@@ -85,10 +91,12 @@ class KeranjangController extends Controller
             $keranjang = Keranjang::create([
                 'user_id'          => $user->id,
                 'master_barang_id' => null,
-                'nama_barang_kustom' => $request->nama_barang_kustom,
-                'harga_estimasi'   => $request->harga_estimasi,
+                'nama_barang'      => $request->nama_barang_kustom,
+                'harga_satuan'     => $request->harga_estimasi,
                 'jumlah'           => $request->jumlah,
-                'tipe_keranjang'   => 'pengajuan'
+                'total_harga'      => $request->harga_estimasi * $request->jumlah,
+                // Mengunci ke nilai spesifikasi asli hasil input manual di form frontend
+                'keterangan'       => $request->spesifikasi 
             ]);
         }
 
@@ -99,27 +107,18 @@ class KeranjangController extends Controller
         ], 201);
     }
 
-    // 3. Hapus Satu Barang dari Keranjang
+    // Hapus Satu Barang dari Keranjang
     public function destroy(Request $request, $id)
     {
         $user = $request->auth;
-        
         if ($tertolak = $this->batasiAksesJurusan($user)) return $tertolak;
 
         $keranjang = Keranjang::where('id', $id)->where('user_id', $user->id)->first();
-
         if (!$keranjang) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Barang di keranjang tidak ditemukan'
-            ], 404);
+            return response()->json(['success' => false, 'message' => 'Barang di keranjang tidak ditemukan'], 404);
         }
 
         $keranjang->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Barang berhasil dihapus dari keranjang.'
-        ], 200);
+        return response()->json(['success' => true, 'message' => 'Barang berhasil dihapus dari keranjang.'], 200);
     }
 }

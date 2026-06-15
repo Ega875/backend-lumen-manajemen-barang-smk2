@@ -28,4 +28,9 @@ class Pengajuan extends Model
     {
         return $this->hasMany(LogsStatus::class, 'pengajuan_id');
     }
+
+    public function detail_pengajuan()
+    {
+        return $this->hasMany(DetailPengajuan::class, 'pengajuan_id');
+    }
 }
