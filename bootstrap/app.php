@@ -5,13 +5,12 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // =========================================================================
-// PERBAIKAN UTAMA: Interupsi Direct OPTIONS (Mencegah Preflight Terblokir)
+// PERBAIKAN UTAMA: Interupsi Direct OPTIONS Tanpa Allow-Credentials
 // =========================================================================
 if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: POST, GET, OPTIONS, PUT, DELETE');
     header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-    header('Access-Control-Allow-Credentials: true');
     exit(0);
 }
 
@@ -35,7 +34,6 @@ $app = new Laravel\Lumen\Application(
 
 $app->withFacades();
 $app->withEloquent();
-
 $app->configure('auth');
 $app->configure('app');
 
@@ -61,16 +59,16 @@ $app->singleton(
 |--------------------------------------------------------------------------
 */
 
-// Middleware Global
+// Middleware Global (Otomatis memproses header CORS untuk method GET, POST, dll)
 $app->middleware([
     App\Http\Middleware\CorsMiddleware::class
 ]);
 
 // Route Middleware
 $app->routeMiddleware([
-    'auth.jwt' => App\Http\Middleware\AuthMiddleware::class,
-    'auth'     => App\Http\Middleware\Authenticate::class,
-    'role'     => App\Http\Middleware\RoleMiddleware::class
+    'auth' => App\Http\Middleware\Authenticate::class,
+    'role' => App\Http\Middleware\RoleMiddleware::class,
+    'cors' => App\Http\Middleware\CorsMiddleware::class,
 ]);
 
 /*

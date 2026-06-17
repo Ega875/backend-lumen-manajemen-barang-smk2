@@ -7,52 +7,67 @@ use Illuminate\Http\Request;
 
 class BarangController extends Controller
 {
-    // 1. Tampilkan Semua Data Barang Inventaris (Untuk Siswa, Sarpras, dll)
-    // GET -> /api/barang
-    public function index()
+    // Mengambil semua data barang untuk dibaca oleh select option & tabel frontend
+    public function index(Request $request)
     {
-        $barang = Barang::all();
+        $authHeader = $request->header('Authorization');
+        $jurusan = null;
+
+        if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+            $token = str_replace('Bearer ', '', $authHeader);
+            try {
+                $secretKey = env('JWT_SECRET', 'rahasia_super_secure_123');
+                $decoded = \Firebase\JWT\JWT::decode($token, new \Firebase\JWT\Key($secretKey, 'HS256'));
+                if (isset($decoded->role) && $decoded->role === 'siswa') {
+                    $jurusan = $decoded->jurusan ?? null;
+                }
+            } catch (\Exception $e) {
+                // Ignore parsing errors
+            }
+        }
+
+        if ($jurusan) {
+            $barang = Barang::where('jurusan', $jurusan)->get();
+        } else {
+            $barang = Barang::whereNull('jurusan')->get();
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Daftar Barang Inventaris Berhasil Diambil',
+            'message' => 'Daftar semua aset logistik',
             'data'    => $barang
         ], 200);
     }
 
-    // 2. TAMBAHAN UTAMA: Fitur Tambah Barang Baru (Akses: Sarpras)
-    // POST -> /api/barang
+    // Menambah master barang baru (opsional jika dibutuhkan oleh Sarpras)
     public function store(Request $request)
     {
-        // Validasi data yang dikirim dari frontend sesuai struktur migrasi barang kamu
         $this->validate($request, [
-            'nama_barang' => 'required|string',
             'kode_barang' => 'required|string|unique:barang,kode_barang',
+            'nama_barang' => 'required|string|max:255',
             'kategori'    => 'required|string',
             'jumlah'      => 'required|integer|min:0',
             'kondisi'     => 'required|string',
             'lokasi'      => 'required|string',
         ]);
 
-        // Simpan data barang baru ke database
         $barang = Barang::create([
-            'nama_barang' => $request->nama_barang,
-            'kode_barang' => $request->kode_barang,
-            'kategori'    => $request->kategori,
-            'jumlah'      => $request->jumlah,
-            'kondisi'     => $request->kondisi,
-            'lokasi'      => $request->lokasi,
+            'kode_barang' => $request->input('kode_barang'),
+            'nama_barang' => $request->input('nama_barang'),
+            'kategori'    => $request->input('kategori'),
+            'jumlah'      => $request->input('jumlah'),
+            'kondisi'     => $request->input('kondisi'),
+            'lokasi'      => $request->input('lokasi'),
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Barang baru berhasil ditambahkan ke inventaris!',
+            'message' => 'Aset barang baru berhasil diregistrasi ke sistem.',
             'data'    => $barang
         ], 201);
     }
 
-    // 3. Fitur STOK MASUK (Akses: Sarpras)
-    // POST -> /api/barang/{id}/stok-masuk
+    // Fitur STOK MASUK (Akses: Sarpras)
     public function stokMasuk(Request $request, $id)
     {
         $this->validate($request, [
@@ -79,8 +94,7 @@ class BarangController extends Controller
         ], 200);
     }
 
-    // 4. Fitur STOK KELUAR (Akses: Sarpras)
-    // POST -> /api/barang/{id}/stok-keluar
+    // Fitur STOK KELUAR (Akses: Sarpras)
     public function stokKeluar(Request $request, $id)
     {
         $this->validate($request, [

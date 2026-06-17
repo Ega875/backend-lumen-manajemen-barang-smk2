@@ -8,6 +8,15 @@ use Illuminate\Http\Request;
 
 class StokMasukController extends Controller
 {
+    public function index()
+    {
+        $riwayat = StokMasuk::with('barang')->orderBy('id', 'desc')->get();
+        return response()->json([
+            'success' => true,
+            'data'    => $riwayat
+        ], 200);
+    }
+
     public function store(Request $request, $id)
     {
         $this->validate($request, [
@@ -43,6 +52,15 @@ class StokMasukController extends Controller
                 'barang'  => $barang,
                 'riwayat' => $riwayat // Biar frontend bisa membaca detail riwayatnya
             ]
+        ], 200);
+    }
+
+    public function clear()
+    {
+        StokMasuk::query()->delete();
+        return response()->json([
+            'success' => true,
+            'message' => 'Riwayat pengadaan berhasil dibersihkan!'
         ], 200);
     }
 }

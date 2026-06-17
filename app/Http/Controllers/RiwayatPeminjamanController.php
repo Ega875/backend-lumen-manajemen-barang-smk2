@@ -13,13 +13,15 @@ class RiwayatPeminjamanController extends Controller
 
         // PERBAIKAN: Menggunakan $user->sub untuk ID dan menyertakan relasi 'with'
         if (in_array($user->role, ['siswa', 'jurusan'])) {
-            $riwayat = Peminjaman::with(['barang'])
-                        ->where('user_id', $user->sub) // <-- Menggunakan 'sub'
+            $riwayat = \App\Models\RiwayatPeminjaman::with(['peminjaman.barang', 'peminjaman.user'])
+                        ->whereHas('peminjaman', function($query) use ($user) {
+                            $query->where('user_id', $user->id);
+                        })
                         ->orderBy('id', 'DESC')
                         ->get();
         } else {
             // Jika Sarpras yang mengakses, tampilkan seluruh riwayat beserta data user & barang
-            $riwayat = Peminjaman::with(['user', 'barang'])
+            $riwayat = \App\Models\RiwayatPeminjaman::with(['peminjaman.barang', 'peminjaman.user'])
                         ->orderBy('id', 'DESC')
                         ->get();
         }

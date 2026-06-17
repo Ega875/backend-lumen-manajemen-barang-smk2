@@ -11,18 +11,18 @@ class RiwayatPengembalianController extends Controller
     {
         $user = $request->auth;
 
-        // PERBAIKAN: Kolom 'status' => 'dikembalikan' dan user_id => 'sub'
+        // PERBAIKAN: Kolom 'status' => 'dikembalikan' dan user_id => 'id'
         if (in_array($user->role, ['siswa', 'jurusan'])) {
-            $riwayat = Peminjaman::with(['barang'])
-                        ->where('user_id', $user->sub) // <-- Menggunakan 'sub'
-                        ->where('status', 'dikembalikan') // <-- Sesuai migrasi kamu
-                        ->orderBy('tanggal_kembali', 'DESC')
+            $riwayat = \App\Models\RiwayatPengembalian::with(['pengembalian.peminjaman.barang', 'pengembalian.peminjaman.user'])
+                        ->whereHas('pengembalian.peminjaman', function($query) use ($user) {
+                            $query->where('user_id', $user->id);
+                        })
+                        ->orderBy('id', 'DESC')
                         ->get();
         } else {
             // Jika Sarpras yang mengakses, tampilkan semua log data pengembalian di sekolah
-            $riwayat = Peminjaman::with(['user', 'barang'])
-                        ->where('status', 'dikembalikan') // <-- Sesuai migrasi kamu
-                        ->orderBy('tanggal_kembali', 'DESC')
+            $riwayat = \App\Models\RiwayatPengembalian::with(['pengembalian.peminjaman.barang', 'pengembalian.peminjaman.user'])
+                        ->orderBy('id', 'DESC')
                         ->get();
         }
 

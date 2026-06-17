@@ -38,6 +38,8 @@ class RoleMiddleware
                 ], 404);
             }
 
+            $user->sub = $user->id;
+
             // 4. PROSES PENYARINGAN ROLE: Cek apakah role user diizinkan masuk
             if (!in_array($user->role, $roles)) {
                 return response()->json([

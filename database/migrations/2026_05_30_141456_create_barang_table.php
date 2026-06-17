@@ -6,26 +6,19 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up(): void
-    {
-        Schema::create('barang', function (Blueprint $table) {
-            $table->id();
-            $table->string('nama_barang');
-            $table->string('kode_barang')->unique();
-            $table->string('kategori');
-            $table->integer('jumlah');
-            $table->string('kondisi');
-            $table->string('lokasi');
-            $table->timestamps();
-        });
+    public function up()
+{
+    Schema::create('barangs', function (Blueprint $table) {
+        $table->id();
+        $table->string('kode_barang')->unique(); // Contoh: BRG-TKJ-2026-001
+        $table->string('nama_barang');
+        $table->string('kategori');
+        $table->integer('stok')->default(0);
+        $table->timestamps();
+    });
+    
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('barang');

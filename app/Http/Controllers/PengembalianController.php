@@ -33,9 +33,33 @@ class PengembalianController extends Controller
 
         try {
             $peminjaman->update([
-                'tanggal_kembali' => date('Y-m-d H:i:s'),
                 'status'          => 'dikembalikan'
             ]);
+
+            $pengembalian = \App\Models\Pengembalian::create([
+                'peminjaman_id'     => $peminjaman->id,
+                'tanggal_kembali'   => date('Y-m-d'),
+                'deskripsi_kembali' => 'Kondisi: ' . ucfirst($request->kondisi_kembali) . '. Keterangan: ' . $request->keterangan_kondisi
+            ]);
+
+            // Catat riwayat pengembalian
+            \App\Models\RiwayatPengembalian::create([
+                'pengembalian_id'   => $pengembalian->id,
+                'aktivitas'         => 'Pengembalian barang ' . $peminjaman->barang->nama_barang . ' dengan kondisi ' . ucfirst($request->kondisi_kembali) . '.',
+                'tanggal_aktivitas' => date('Y-m-d')
+            ]);
+
+            // Sinkronisasi data ke tabel peminjaman_alat jika ada record yang cocok
+            $peminjamanAlat = \App\Models\PeminjamanAlat::where('siswa_id', $peminjaman->user_id)
+                ->where('kode_alat', $peminjaman->barang->kode_barang)
+                ->where('status', 'dipinjam')
+                ->first();
+            if ($peminjamanAlat) {
+                $peminjamanAlat->update([
+                    'status' => 'dikembalikan',
+                    'keterangan_kondisi' => 'Kondisi: ' . ucfirst($request->kondisi_kembali) . '. Keterangan: ' . $request->keterangan_kondisi
+                ]);
+            }
 
             if ($request->kondisi_kembali !== 'hilang') {
                 $barang = Barang::find($peminjaman->barang_id);
@@ -71,18 +95,18 @@ class PengembalianController extends Controller
     // 2. TAMBAHAN: Melihat riwayat pengembalian (GET -> /api/pengembalian/riwayat)
     public function riwayatKembali(Request $request): JsonResponse
     {
-        $userId = $request->auth->sub; // Ambil ID user dari token
+        $userId = $request->auth->id; // Ambil ID user dari token
         $role   = $request->auth->role; // Ambil role user dari token
 
         // Jika yang login adalah siswa, hanya tampilkan riwayat pengembalian milik dia sendiri
         if ($role === 'siswa') {
-            $riwayat = Peminjaman::with(['barang'])
+            $riwayat = Peminjaman::with(['barang', 'pengembalian'])
                                  ->where('user_id', $userId)
                                  ->where('status', 'dikembalikan')
                                  ->get();
         } else {
             // Jika Sarpras atau Jurusan, tampilkan semua data yang sudah dikembalikan
-            $riwayat = Peminjaman::with(['user', 'barang'])
+            $riwayat = Peminjaman::with(['user', 'barang', 'pengembalian'])
                                  ->where('status', 'dikembalikan')
                                  ->get();
         }

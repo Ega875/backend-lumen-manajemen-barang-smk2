@@ -21,10 +21,8 @@ class Pengembalian extends Model
         return $this->belongsTo(Peminjaman::class, 'peminjaman_id');
     }
 
-    // Tambahkan ini di dalam class Peminjaman jika memakai tabel terpisah
-public function pengembalian()
-{
-    return $this->hasOne(Pengembalian::class, 'peminjaman_id');
-}
-
+    public function riwayatPengembalian()
+    {
+        return $this->hasMany(RiwayatPengembalian::class, 'pengembalian_id');
+    }
 }

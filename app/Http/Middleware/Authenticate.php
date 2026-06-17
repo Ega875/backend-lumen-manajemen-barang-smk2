@@ -35,6 +35,7 @@ class Authenticate
             // 2. Decode token JWT-mu
             $secretKey = env('JWT_SECRET', 'rahasia_super_secure_123');
             $decoded = JWT::decode($token, new Key($secretKey, 'HS256'));
+            $decoded->id = $decoded->sub;
 
             // Simpan data user ke request biar bisa diakses di controller
             $request->auth = $decoded;

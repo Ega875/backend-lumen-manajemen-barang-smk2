@@ -15,7 +15,9 @@ class ScanQrController extends Controller
         ]);
 
         // Cari data barang berdasarkan kode unik hasil scan QR
-        $barang = Barang::where('kode_barang', $request->kode_barang)->first();
+        $kodeBarangInput = strtolower(trim($request->kode_barang));
+
+        $barang = Barang::where('kode_barang', $kodeBarangInput)->first();
 
         if (!$barang) {
             return response()->json([
@@ -24,8 +26,8 @@ class ScanQrController extends Controller
             ], 404);
         }
 
-        // 2. TAMBAHAN UTAMA: Ambil ID user dari Token JWT dan simpan log ke database
-        $userId = $request->auth->sub;
+        // Ambil ID user dari Token JWT dan simpan log ke database
+        $userId = $request->auth->id;
 
         $logScan = ScanQr::create([
             'user_id'      => $userId,
@@ -44,8 +46,8 @@ class ScanQrController extends Controller
                 'nama_barang'   => $barang->nama_barang,
                 'kategori'      => $barang->kategori,
                 'kondisi'       => $barang->kondisi,
-                'stok_tersedia' => $barang->jumlah,
-                'log_scan'      => $logScan // Biar frontend tahu log-nya sukses dibuat
+                'stok_tersedia' => $barang->jumlah, // Ini sudah benar, mencocokkan dengan kolom 'jumlah' di database
+                'log_scan'      => $logScan
             ]
         ], 200);
     }

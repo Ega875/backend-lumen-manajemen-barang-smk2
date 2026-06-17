@@ -12,10 +12,16 @@ class Peminjaman extends Model
         'user_id',
         'barang_id',
         'tanggal_pinjam',
-        'tanggal_kembali',
-        'jumlah_pinjam', // <-- WAJIB DITAMBAHKAN BIAR GAK ERROR
+        'jumlah_pinjam',
         'status',
     ];
+
+    protected $appends = ['tanggal_kembali'];
+
+    public function getTanggalKembaliAttribute()
+    {
+        return $this->pengembalian ? $this->pengembalian->tanggal_kembali : null;
+    }
 
     public function barang()
     {
@@ -25,5 +31,15 @@ class Peminjaman extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function pengembalian()
+    {
+        return $this->hasOne(Pengembalian::class, 'peminjaman_id');
+    }
+
+    public function riwayatPeminjaman()
+    {
+        return $this->hasMany(RiwayatPeminjaman::class, 'peminjaman_id');
     }
 }
